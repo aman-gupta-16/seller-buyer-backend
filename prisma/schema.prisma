@@ -1,0 +1,53 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Buyer {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  projects  Project[]
+
+  // Optional: If adding authentication later, you can add password here
+}
+
+model Seller {
+  id        Int       @id @default(autoincrement())
+  name      String
+  email     String    @unique
+  bids      Bid[]
+
+  // Optional: If adding authentication later, you can add password here
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  budgetMin   Int
+  budgetMax   Int
+  deadline    DateTime
+  status      String    @default("Pending")
+  buyerId     Int
+  buyer       Buyer     @relation(fields: [buyerId], references: [id])
+  bids        Bid[]
+  selectedSellerId Int? // Nullable, selected seller
+}
+
+model Bid {
+  id          Int       @id @default(autoincrement())
+  bidAmount   Int
+  estimatedTime String
+  message     String
+  sellerId    Int
+  seller      Seller    @relation(fields: [sellerId], references: [id])
+  projectId   Int
+  project     Project   @relation(fields: [projectId], references: [id])
+}
