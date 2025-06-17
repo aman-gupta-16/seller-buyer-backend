@@ -39,6 +39,7 @@ model Project {
   buyer       Buyer     @relation(fields: [buyerId], references: [id])
   bids        Bid[]
   selectedSellerId Int? // Nullable, selected seller
+  deliverableUrl   String? 
 }
 
 model Bid {
