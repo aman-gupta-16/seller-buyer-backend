@@ -2,7 +2,8 @@ import prisma from "../prisma/prismaClient.js";
 
 export const createNewBid =async (req, res) => {
   try {
-    const { sellerId, projectId, bidAmount, estimatedTime, message } = req.body;
+    const {  projectId, bidAmount, estimatedTime, message } = req.body;
+    const sellerId = req.user.id;
 
     // Check if project exists
     const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -40,7 +41,8 @@ export const getBidForProjects =  async (req, res) => {
 
     const bids = await prisma.bid.findMany({
       where: { projectId: parseInt(projectId) },
-      include: { seller: true }, // Include seller info in response
+      include: { seller: true}, // Include seller info in response
+      // include:{project:true}
     });
 
     res.json({ bids });
