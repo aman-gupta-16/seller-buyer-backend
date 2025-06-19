@@ -2,9 +2,8 @@ import prisma from "../prisma/prismaClient.js";
 
 export const createNewProject = async (req, res) => {
   try {
-    const { title, description, budgetMin, budgetMax, deadline } =
-      req.body;
-      const buyerId= req.user.id;
+    const { title, description, budgetMin, budgetMax, deadline } = req.body;
+    const buyerId = req.user.id;
 
     const project = await prisma.project.create({
       data: {
@@ -43,19 +42,21 @@ export const selectSeller = async (req, res) => {
     const { projectId, sellerId } = req.body;
 
     const project = await prisma.project.findUnique({
-      where: { id:parseInt(projectId)  },
+      where: { id: parseInt(projectId) },
     });
     if (!project) {
       return res.status(404).json({ error: "Project not found" });
     }
 
-    const seller = await prisma.seller.findUnique({ where: { id:parseInt(sellerId)} });
+    const seller = await prisma.seller.findUnique({
+      where: { id: parseInt(sellerId) },
+    });
     if (!seller) {
       return res.status(404).json({ error: "Seller not found" });
     }
 
     const updatedProject = await prisma.project.update({
-      where: { id: parseInt(projectId)},
+      where: { id: parseInt(projectId) },
       data: {
         status: "In Progress",
         selectedSellerId: sellerId,
@@ -113,7 +114,7 @@ export const uploadDeliverables = async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" });
     }
-    const fileUrl = `${req.file.path}?fl_attachment` ;
+    const fileUrl = `${req.file.path}?fl_attachment`;
 
     const updatedProject = await prisma.project.update({
       where: { id: parseInt(projectId) },
@@ -121,7 +122,95 @@ export const uploadDeliverables = async (req, res) => {
         deliverableUrl: fileUrl,
       },
     });
+    res.json({
+      message: "Deliverable uploaded",
+      updatedProject,
+    });
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ error: error.message || "Failed to upload deliverable" });
+  }
+};
 
+export const getProjectsByBuyer = async (req, res) => {
+  const buyerId = req.user.id;
+  try {
+    const buyer = await prisma.buyer.findUnique({
+      where: { id: buyerId },
+    });
+    if (!buyer) {
+      return res.status(404).json({ error: "Buyer not found" });
+    }
+    const projects = await prisma.project.findMany({
+      where: { buyerId: buyer.id },
+    });
+    return res.status(200).json({
+      message: "projects Found",
+      projects,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "Failed to Get Project" });
+  }
+};
+
+export const getProject = async (req, res) => {
+  const { projectId } = req.params;
+  try {
+    const project = await prisma.project.findUnique({
+      where: {
+        id: parseInt(projectId),
+      },
+    });
+    return res.status(200).json({
+      message: "project Found",
+      project,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "Failed to Get Projects" });
+  }
+};
+
+export const awardedBidBySeller = async (req, res) => {
+  const sellerId = req.user.id;
+  try {
+    const seller = await prisma.seller.findUnique({
+      where: { id: parseInt(sellerId) },
+    });
+    if (!seller) {
+      return res.status(404).json({
+        error: "Seller Not Found",
+      });
+    }
+    const projects = await prisma.project.findMany({
+      where: {
+        selectedSellerId: parseInt(sellerId),
+      },
+    });
+    return res.status(201).json({
+      message: "projects found",
+      projects,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || "Failed to Get Projects" });
+  }
+};
+
+export const updateStatusOfProject = async (req, res) => {
+  const { status, projectId } = req.body;
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+    });
+    if (!project) {
+      return res.status(404).json({
+        error: "project is not found",
+      });
+    }
     const nodemailer = await import("nodemailer");
 
     const transporter = nodemailer.createTransport({
@@ -143,7 +232,7 @@ export const uploadDeliverables = async (req, res) => {
       from: process.env.EMAIL_USER,
       to: `${buyer.email}, ${seller.email}`,
       subject: "Project Completed!",
-      text: `The project "${project.title}" has been marked as completed. Deliverables: ${fileUrl}`,
+      text: `The project "${project.title}" has been marked as completed.`,
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -154,118 +243,18 @@ export const uploadDeliverables = async (req, res) => {
       }
     });
 
-    res.json({
-      message: "Deliverable uploaded and project completed.",
-      fileUrl,
+    const updatedProject = await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status: status,
+      },
+    });
+    return res.status(201).json({
+      message: "project completed.",
+      updatedProject,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to upload deliverable" });
+    res.status(500).json({ error: error.message || "Failed to update status" });
   }
 };
-
-
-export const getProjectsByBuyer = async (req,res)=>{
-  const buyerId = req.user.id;
-  try {
-    const buyer = await prisma.buyer.findUnique({
-      where:{id:buyerId}
-    })
-    if(!buyer){
-      return res.status(404).json({ error: "Buyer not found" });
-    }
-    const projects = await prisma.project.findMany({
-      where:{buyerId:buyer.id}
-    })
-    return res.status(200).json({
-      message:"projects Found",
-      projects
-    })
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to Get Project" });
-  
-  }
-}
-
-export const getProject = async(req,res)=>{
-  const {projectId} = req.params;
-  try {
-    const project = await prisma.project.findUnique({
-      where:{
-        id:parseInt(projectId)
-      }
-    })
-    return res.status(200).json({
-      message:"project Found",
-      project
-    })
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to Get Projects" });
-  }
-}
-
-export const awardedBidBySeller = async (req,res)=>{
-  const sellerId = req.user.id;
-  try {
-    const seller = await prisma.seller.findUnique({
-      where:{id:parseInt(sellerId)}
-    })
-    if(!seller){
-      return res.status(404).json({
-        error:"Seller Not Found"
-      })
-    }
-    const projects = await prisma.project.findMany({
-      where:{
-        selectedSellerId:parseInt(sellerId)
-      }
-    })
-    return res.status(201).json({
-      message:"projects found",
-      projects
-    })
-  } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to Get Projects" });
-  }
-}
-
-export const updateStatusOfProject = async (req,res)=>{
-  const {status,projectId} = req.body;
-  try {
-    const project = await prisma.project.findUnique({
-      where:{id:projectId}
-    })
-    if(!project){
-      return res.status(404).json({
-        error:"project is not found"
-      })
-    }
-
-    const updatedProject = await prisma.project.update({
-      where:{id:projectId},
-        data: {
-        status: status,
-      }, 
-    })
-    return res.status(201).json({
-      message:"status updated succesfully",
-      updatedProject,
-    })
-  } catch (error) {
-     console.error(error);
-    res
-      .status(500)
-      .json({ error: error.message || "Failed to update status" });
-  }
-}
