@@ -13,7 +13,7 @@ const app = express();
 const PORT = process.env.PORT || 8000;
 
 app.use(cors({
-  origin: ['http://localhost:3000', 'https://bid-connect.vercel.app/'],
+  origin: ['http://localhost:3000', 'https://bid-connect.vercel.app'],
   credentials: true
 }));
 app.use(express.json());
